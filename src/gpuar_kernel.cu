@@ -18,70 +18,69 @@ __device__ __constant__ probability_t INITIALIZED_CUMULATIVE_PROB;
 __host__ __device__ unsigned int read(void const *src, unsigned int bytes)
 {
 
-	unsigned char *p = (unsigned char*)src;
-	switch (bytes)
-	{
-		case 4:
-			return(*p | *(p + 1) << 8 | *(p + 2) << 16 | *(p + 3) << 24);
-		case 3: 
-			return(*p | *(p + 1) << 8 | *(p + 2) << 16);
-		case 2:
-			return(*p | *(p + 1) << 8);
-		case 1: 
-			return(*p);
-	}
-	return 0;
+    unsigned char *p = (unsigned char *)src;
+    switch (bytes)
+    {
+    case 4:
+        return (*p | *(p + 1) << 8 | *(p + 2) << 16 | *(p + 3) << 24);
+    case 3:
+        return (*p | *(p + 1) << 8 | *(p + 2) << 16);
+    case 2:
+        return (*p | *(p + 1) << 8);
+    case 1:
+        return (*p);
+    }
+    return 0;
 }
 
-__host__ __device__ unsigned short getCompressedSize(const void* src){
+__host__ __device__ unsigned short getCompressedSize(const void *src)
+{
 
-	return read(((const char*)src),2);
+    return read(((const char *)src), 2);
 }
 
-__host__ __device__ unsigned short getUncompressedSize(const void* src){
+__host__ __device__ unsigned short getUncompressedSize(const void *src)
+{
 
-	return read(((const char*)src)+2,2);
+    return read(((const char *)src) + 2, 2);
 }
 
 __host__ __device__ void write(unsigned int f, void *dst, size_t bytes)
 {
-	
-	unsigned char *p = (unsigned char*)dst;
 
-	switch (bytes)
-	{
-		case 4: 
-			*p = (unsigned char)f;
-			*(p + 1) = (unsigned char)(f >> 8);
-			*(p + 2) = (unsigned char)(f >> 16);
-			*(p + 3) = (unsigned char)(f >> 24);
-			return;
-		case 3:
-			*p = (unsigned char)f;
-			*(p + 1) = (unsigned char)(f >> 8);
-			*(p + 2) = (unsigned char)(f >> 16);
-			return;
-		case 2:
-			*p = (unsigned char)f;
-			*(p + 1) = (unsigned char)(f >> 8);
-			return;
-		case 1:
-			*p = (unsigned char)f;
-			return;
-	}
+    unsigned char *p = (unsigned char *)dst;
+
+    switch (bytes)
+    {
+    case 4:
+        *p = (unsigned char)f;
+        *(p + 1) = (unsigned char)(f >> 8);
+        *(p + 2) = (unsigned char)(f >> 16);
+        *(p + 3) = (unsigned char)(f >> 24);
+        return;
+    case 3:
+        *p = (unsigned char)f;
+        *(p + 1) = (unsigned char)(f >> 8);
+        *(p + 2) = (unsigned char)(f >> 16);
+        return;
+    case 2:
+        *p = (unsigned char)f;
+        *(p + 1) = (unsigned char)(f >> 8);
+        return;
+    case 1:
+        *p = (unsigned char)f;
+        return;
+    }
 }
 
+__host__ __device__ __inline int putChar(const int c, BitPointer *stream)
+{
+    stream->fp[0] = c;
+    ++stream->fp;
 
+    //		std::cout<<c<<std::endl;
 
-
-__host__ __device__ __inline int putChar(const int c, BitPointer* stream){
-	stream->fp[0] = c;
-	++stream->fp;
-
-
-//		std::cout<<c<<std::endl;
-
-	return c;
+    return c;
 }
 
 /***************************************************************************
@@ -100,18 +99,19 @@ __host__ __device__ __inline int writeChar(const int c, BitPointer *stream)
     if (stream->bitCount == 0)
     {
         /* we can just put byte from file */
-		return putChar(c,stream);
+        return putChar(c, stream);
         //return fputc(c, stream->fp);
-    }else{
+    }
+    else
+    {
 
-		/* figure out what to write */
-		tmp = ((unsigned char)c) >> (stream->bitCount);
-		tmp = tmp | ((stream->bitBuffer) << (8 - stream->bitCount));
-		putChar(tmp, stream);
-		stream->bitBuffer = c;
+        /* figure out what to write */
+        tmp = ((unsigned char)c) >> (stream->bitCount);
+        tmp = tmp | ((stream->bitBuffer) << (8 - stream->bitCount));
+        putChar(tmp, stream);
+        stream->bitBuffer = c;
 
-
-		return tmp;
+        return tmp;
     }
 }
 
@@ -140,7 +140,7 @@ __host__ __device__ __inline int writeBit(const int c, BitPointer *stream)
     /* write bit buffer if we have 8 bits */
     if (stream->bitCount == 8)
     {
-		putChar(stream->bitBuffer,stream);
+        putChar(stream->bitBuffer, stream);
 
         /* reset buffer */
         stream->bitCount = 0;
@@ -168,7 +168,7 @@ __host__ __device__ __inline int writeBit(const int c, BitPointer *stream)
 __host__ __device__ __inline int writeBits(BitPointer *stream, void *bits, const unsigned int count)
 {
     unsigned char *bytes, tmp;
-    int offset, remaining/*, returnValue*/;
+    int offset, remaining /*, returnValue*/;
 
     bytes = (unsigned char *)bits;
     offset = 0;
@@ -177,8 +177,8 @@ __host__ __device__ __inline int writeBits(BitPointer *stream, void *bits, const
     /* write whole bytes */
     while (remaining >= 8)
     {
-		writeChar(bytes[offset],stream);
-		//returnValue = BitFilePutChar(bytes[offset], stream);
+        writeChar(bytes[offset], stream);
+        //returnValue = BitFilePutChar(bytes[offset], stream);
 
         remaining -= 8;
         offset++;
@@ -192,7 +192,7 @@ __host__ __device__ __inline int writeBits(BitPointer *stream, void *bits, const
 
         while (remaining > 0)
         {
-            /*returnValue =*/ writeBit((tmp & 0x80), stream);
+            /*returnValue =*/writeBit((tmp & 0x80), stream);
 
             tmp <<= 1;
             remaining--;
@@ -202,35 +202,39 @@ __host__ __device__ __inline int writeBits(BitPointer *stream, void *bits, const
     return count;
 }
 
-
-__host__ __device__ __inline int forward(const int symbol){
-	return symbol+(symbol&(-symbol));
+__host__ __device__ __inline int forward(const int symbol)
+{
+    return symbol + (symbol & (-symbol));
 }
 
-__host__ __device__ __inline int backward(const int symbol){
-	return symbol&(symbol-1);
+__host__ __device__ __inline int backward(const int symbol)
+{
+    return symbol & (symbol - 1);
 }
 
-__host__ __device__ __inline probability_t getRange(const int symbol,  AdaptiveProbabilityRange& r){
-	int i=symbol;
-	probability_t h=0;
+__host__ __device__ __inline probability_t getRange(const int symbol, AdaptiveProbabilityRange &r)
+{
+    int i = symbol;
+    probability_t h = 0;
 
-	while(i!=0){
-		h = h+r.ranges[i];
-		i = backward(i);
-	}
+    while (i != 0)
+    {
+        h = h + r.ranges[i];
+        i = backward(i);
+    }
 
-	return h;
+    return h;
 }
 
-__host__ __device__ __inline void update(const int symbol,  AdaptiveProbabilityRange& r){
-	int i=symbol;
+__host__ __device__ __inline void update(const int symbol, AdaptiveProbabilityRange &r)
+{
+    int i = symbol;
 
-	while(i<=UPPER(EOF_CHAR)){
-		r.ranges[i] = r.ranges[i]+1;
-		i = forward(i);
-	}
-
+    while (i <= UPPER(EOF_CHAR))
+    {
+        r.ranges[i] = r.ranges[i] + 1;
+        i = forward(i);
+    }
 }
 
 /***************************************************************************
@@ -249,50 +253,48 @@ __host__ __device__ __inline void update(const int symbol,  AdaptiveProbabilityR
 *                probability range list will be updated.
 *   Returned   : None
 ***************************************************************************/
-__host__ __device__ __inline void applySymbolRange(const int symbol,  AdaptiveProbabilityRange& r, probability_t &lower,probability_t &upper, probability_t &cumulativeProb)
+__host__ __device__ __inline void applySymbolRange(const int symbol, AdaptiveProbabilityRange &r, probability_t &lower, probability_t &upper, probability_t &cumulativeProb)
 {
-    unsigned int range;        /* must be able to hold max upper + 1 */
-    unsigned int rescaled;     /* range rescaled for range of new symbol */
-                                /* must hold range * max upper */
+    unsigned int range;    /* must be able to hold max upper + 1 */
+    unsigned int rescaled; /* range rescaled for range of new symbol */
+                           /* must hold range * max upper */
 
     /* for updating dynamic models */
     //int i;
-    
 
     /***********************************************************************
     * Calculate new upper and lower ranges.  Since the new upper range is
     * dependant of the old lower range, compute the upper range first.
     ***********************************************************************/
-    range = (unsigned int)(upper - lower) + 1;         /* current range */
+    range = (unsigned int)(upper - lower) + 1; /* current range */
 
     /* scale upper range of the symbol being coded */
-    rescaled = (unsigned int)getRange(UPPER(symbol),r) * range;
+    rescaled = (unsigned int)getRange(UPPER(symbol), r) * range;
     rescaled /= (unsigned int)cumulativeProb;
 
     /* new upper = old lower + rescaled new upper - 1*/
     upper = lower + (probability_t)rescaled - 1;
 
     /* scale lower range of the symbol being coded */
-    rescaled = (unsigned int)getRange(LOWER(symbol),r) * range;
+    rescaled = (unsigned int)getRange(LOWER(symbol), r) * range;
     rescaled /= (unsigned int)cumulativeProb;
 
     /* new lower = old lower + rescaled new upper */
     lower = lower + (probability_t)rescaled;
 
+    /* add new symbol to model */
+    ++cumulativeProb;
 
-        /* add new symbol to model */
-        ++cumulativeProb;
-		
-        update(UPPER(symbol),r);
-		/*
+    update(UPPER(symbol), r);
+    /*
 		for (i = UPPER(symbol); i <= UPPER(EOF_CHAR); i++)
         {
             
             r.ranges[i] += 1;
         }*/
 
-        /* half current values if cumulativeProb is too large */
-		  /*
+    /* half current values if cumulativeProb is too large */
+    /*
         if (r.cumulativeProb >= MAX_PROBABILITY)
         {
             probability_t original=0;    
@@ -320,13 +322,12 @@ __host__ __device__ __inline void applySymbolRange(const int symbol,  AdaptivePr
             }
         }*/
 
-
 #ifdef _DEBUG
     if (lower > upper)
     {
         /* compile this in when testing new models. */
         assert("Panic: out of range");
-		//std::cout<< "Panic: lower ("<< lower<<")> upper ("<<upper<<std::endl;
+        //std::cout<< "Panic: lower ("<< lower<<")> upper ("<<upper<<std::endl;
         //fprintf(stderr, "Panic: lower (%X)> upper (%X)\n", lower, upper);
     }
 #endif
@@ -352,7 +353,7 @@ __host__ __device__ __inline void applySymbolRange(const int symbol,  AdaptivePr
 *                addition of a new symbol to the encoded stream.
 *   Returned   : None
 ***************************************************************************/
-__host__ __device__ __inline void writeEncodedBits(BitPointer *bfpOut, probability_t &lower,probability_t &upper, probability_t &underflowBits)
+__host__ __device__ __inline void writeEncodedBits(BitPointer *bfpOut, probability_t &lower, probability_t &upper, probability_t &underflowBits)
 {
     for (;;)
     {
@@ -387,7 +388,7 @@ __host__ __device__ __inline void writeEncodedBits(BitPointer *bfpOut, probabili
         else
         {
             /* nothing left to do */
-            return ;
+            return;
         }
 
         /*******************************************************************
@@ -410,7 +411,7 @@ __host__ __device__ __inline void writeEncodedBits(BitPointer *bfpOut, probabili
 *                file.
 *   Returned   : None
 ***************************************************************************/
-__host__ __device__ __inline void writeRemaining(BitPointer *bfpOut,probability_t &lower,probability_t &upper,probability_t &underflowBits      /* current underflow bit count */)
+__host__ __device__ __inline void writeRemaining(BitPointer *bfpOut, probability_t &lower, probability_t &upper, probability_t &underflowBits /* current underflow bit count */)
 {
     writeBit((lower & MASK_BIT(1)) != 0, bfpOut);
 
@@ -434,21 +435,20 @@ __host__ __device__ __inline void writeRemaining(BitPointer *bfpOut,probability_
 *                for each symbol.
 *   Returned   : NONE
 ***************************************************************************/
-__host__ __device__ __inline void initializeAdaptiveProbabilityRangeList(AdaptiveProbabilityRange* r, probability_t& cumulativeProb)
+__host__ __device__ __inline void initializeAdaptiveProbabilityRangeList(AdaptiveProbabilityRange *r, probability_t &cumulativeProb)
 {
     int c;
 
     cumulativeProb = 0;
-    r->ranges[0] = 0;          /* absolute lower range */
-	
-	
+    r->ranges[0] = 0; /* absolute lower range */
+
     /* assign upper and lower probability ranges assuming */
-	memset(r->ranges,0,sizeof(probability_t)*(UPPER(EOF_CHAR)+1) );
-    #pragma unroll 256
+    memset(r->ranges, 0, sizeof(probability_t) * (UPPER(EOF_CHAR) + 1));
+#pragma unroll 256
     for (c = 1; c <= UPPER(EOF_CHAR); c++)
     {
-        
-		update(c,*r);
+
+        update(c, *r);
         ++cumulativeProb;
     }
 }
@@ -469,30 +469,29 @@ __host__ __device__ __inline void writeClose(BitPointer *stream)
     if (stream->bitCount != 0)
     {
         (stream->bitBuffer) <<= 8 - (stream->bitCount);
-        putChar(stream->bitBuffer, stream);   /* handle error? */
-     }
+        putChar(stream->bitBuffer, stream); /* handle error? */
+    }
 }
 
+__host__ __device__ BitPointer createBitPointer(unsigned char *data)
+{
+    BitPointer bp;
 
-__host__ __device__ BitPointer createBitPointer(unsigned char *data){
-	BitPointer bp;
-	
-	bp.fp = data;                 /* file pointer used by stdio functions */
-                  
-    bp.bitBuffer=0;    /* bits waiting to be read/written */
-    bp.bitCount=0;     /* number of bits in bitBuffer */
-    
+    bp.fp = data; /* file pointer used by stdio functions */
+
+    bp.bitBuffer = 0; /* bits waiting to be read/written */
+    bp.bitCount = 0;  /* number of bits in bitBuffer */
+
     return bp;
-}	
+}
 
-
-
-__host__ void initConstantRange(){
-	AdaptiveProbabilityRange r;
-	probability_t cumulativeProb;
-	initializeAdaptiveProbabilityRangeList(&r,cumulativeProb);
-	cudaMemcpyToSymbol(INITIALIZED_RANGE[0],&r,sizeof(AdaptiveProbabilityRange));
-	cudaMemcpyToSymbol(INITIALIZED_CUMULATIVE_PROB, &cumulativeProb,sizeof(probability_t));
+__host__ void initConstantRange()
+{
+    AdaptiveProbabilityRange r;
+    probability_t cumulativeProb;
+    initializeAdaptiveProbabilityRangeList(&r, cumulativeProb);
+    cudaMemcpyToSymbol(INITIALIZED_RANGE[0], &r, sizeof(AdaptiveProbabilityRange));
+    cudaMemcpyToSymbol(INITIALIZED_CUMULATIVE_PROB, &cumulativeProb, sizeof(probability_t));
 }
 
 /***************************************************************************
@@ -505,25 +504,23 @@ __host__ void initConstantRange(){
 *   Effects    : Binary data is arithmetically encoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ***************************************************************************/
-__host__ __device__ size_t arCompress(const unsigned char *fpIn,const size_t size ,unsigned char *outFile,AdaptiveProbabilityRange& r, probability_t& cumulativeProb)
+__host__ __device__ size_t arCompress(const unsigned char *fpIn, const size_t size, unsigned char *outFile, AdaptiveProbabilityRange &r, probability_t &cumulativeProb)
 {
-     unsigned char c;
-    BitPointer bfpOut = createBitPointer(outFile+PACKET_HEADER_LENGTH);                 /* encoded output */
-	
-	    /* initialize coder start with full probability range [0%, 100%) */
+    unsigned char c;
+    BitPointer bfpOut = createBitPointer(outFile + PACKET_HEADER_LENGTH); /* encoded output */
+
+    /* initialize coder start with full probability range [0%, 100%) */
     probability_t lower = 0;
-    probability_t upper = ~0;                     /* all ones */
+    probability_t upper = ~0; /* all ones */
     probability_t underflowBits = 0;
-	size_t length;
-	ulonglong2 element;
-	ulonglong2* elementPointer = (ulonglong2*)fpIn;
-	size_t elementCount = ceil((float)size/(float)sizeof(ulonglong2));
-	size_t remaining=size;
-	unsigned int bytesOffset;
+    size_t length;
+    ulonglong2 element;
+    ulonglong2 *elementPointer = (ulonglong2 *)fpIn;
+    size_t elementCount = ceil((float)size / (float)sizeof(ulonglong2));
+    size_t remaining = size;
+    unsigned int bytesOffset;
 
-	
-
-     /* initialize probability ranges asumming uniform distribution */
+    /* initialize probability ranges asumming uniform distribution */
     /*
 	#ifdef _DEBUG
 	if(r->cumulativeProb!=256){
@@ -532,61 +529,57 @@ __host__ __device__ size_t arCompress(const unsigned char *fpIn,const size_t siz
 
 	#endif
 	*/
-	for(size_t i=0;i<elementCount;++i){
-		element = elementPointer[i];
-		bytesOffset = 0;
-		//dataPointer = (unsigned char*)(&element);
-		/* encode symbols one at a time */
-		
-		while(bytesOffset<sizeof(unsigned long long)&&remaining>0)
-		{
-			c =(unsigned char)(element.x >> (bytesOffset*8) );
-			//c = fpIn[j];
-			applySymbolRange(c,r,lower,upper, cumulativeProb);
-			writeEncodedBits(&bfpOut,lower,upper,underflowBits);
-			++bytesOffset;
-			--remaining;
-		}
+    for (size_t i = 0; i < elementCount; ++i)
+    {
+        element = elementPointer[i];
+        bytesOffset = 0;
+        //dataPointer = (unsigned char*)(&element);
+        /* encode symbols one at a time */
 
-		bytesOffset = 0;
-		while(bytesOffset<sizeof(unsigned long long)&&remaining>0)
-		{
-			c =(unsigned char)(element.y >> (bytesOffset*8) );
-			//c = fpIn[j];
-			applySymbolRange(c,r,lower,upper,cumulativeProb);
-			writeEncodedBits(&bfpOut,lower,upper,underflowBits);
-			++bytesOffset;
-			--remaining;
-		}
-    
+        while (bytesOffset < sizeof(unsigned long long) && remaining > 0)
+        {
+            c = (unsigned char)(element.x >> (bytesOffset * 8));
+            //c = fpIn[j];
+            applySymbolRange(c, r, lower, upper, cumulativeProb);
+            writeEncodedBits(&bfpOut, lower, upper, underflowBits);
+            ++bytesOffset;
+            --remaining;
+        }
+
+        bytesOffset = 0;
+        while (bytesOffset < sizeof(unsigned long long) && remaining > 0)
+        {
+            c = (unsigned char)(element.y >> (bytesOffset * 8));
+            //c = fpIn[j];
+            applySymbolRange(c, r, lower, upper, cumulativeProb);
+            writeEncodedBits(&bfpOut, lower, upper, underflowBits);
+            ++bytesOffset;
+            --remaining;
+        }
     }
 
-   // applySymbolRange(EOF_CHAR, r,lower,upper);    /* encode an EOF */
-   // writeEncodedBits(&bfpOut,lower,upper,underflowBits);
+    // applySymbolRange(EOF_CHAR, r,lower,upper);    /* encode an EOF */
+    // writeEncodedBits(&bfpOut,lower,upper,underflowBits);
 
-    writeRemaining(&bfpOut,lower,upper,underflowBits);         /* write out least significant bits */
+    writeRemaining(&bfpOut, lower, upper, underflowBits); /* write out least significant bits */
     writeClose(&bfpOut);
-	length = bfpOut.fp-outFile;
+    length = bfpOut.fp - outFile;
 
-	
-	write(length, outFile ,2);
-	write(size, outFile +2,2);
+    write(length, outFile, 2);
+    write(size, outFile + 2, 2);
 
-	return length;
+    return length;
 }
 
+__host__ __device__ __inline int getChar(BitPointer *stream)
+{
+    //;
 
+    int x = stream->fp[0];
+    ++stream->fp;
 
-__host__ __device__ __inline int getChar(BitPointer *stream){
-	//;
-	
-	int x = stream->fp[0];
-		++stream->fp;
-
-	return x;
-
+    return x;
 }
-
 
 /***************************************************************************
 *   Function   : readBit
@@ -604,9 +597,9 @@ __host__ __device__ int readBit(BitPointer *stream)
 
     if (stream->bitCount == 0)
     {
-            returnValue = getChar(stream);
-            stream->bitCount = 8;
-            stream->bitBuffer = returnValue;
+        returnValue = getChar(stream);
+        stream->bitCount = 8;
+        stream->bitBuffer = returnValue;
     }
 
     /* bit to return is msb in buffer */
@@ -627,7 +620,7 @@ __host__ __device__ int readBit(BitPointer *stream)
 *                will be used.
 *   Returned   : TRUE for success, otherwise FALSE
 ****************************************************************************/
-__host__ __device__  void initializeDecoder(BitPointer *bfpIn, probability_t &lower,probability_t &upper,probability_t &code  )
+__host__ __device__ void initializeDecoder(BitPointer *bfpIn, probability_t &lower, probability_t &upper, probability_t &code)
 {
     int i;
 
@@ -639,7 +632,7 @@ __host__ __device__  void initializeDecoder(BitPointer *bfpIn, probability_t &lo
         code <<= 1;
 
         /* treat EOF like 0 */
-        if(readBit(bfpIn) == 1)
+        if (readBit(bfpIn) == 1)
         {
             code |= 1;
         }
@@ -647,9 +640,8 @@ __host__ __device__  void initializeDecoder(BitPointer *bfpIn, probability_t &lo
 
     /* start with full probability range [0%, 100%) */
     lower = 0;
-    upper = ~0;         /* all ones */
+    upper = ~0; /* all ones */
 }
-
 
 /***************************************************************************
 *   Function   : readChar
@@ -675,14 +667,14 @@ __host__ __device__ int readChar(BitPointer *stream)
 
     /* we have some buffered bits to return too */
 
-        /* figure out what to return */
-        tmp = ((unsigned char)returnValue) >> (stream->bitCount);
-        tmp |= ((stream->bitBuffer) << (8 - (stream->bitCount)));
+    /* figure out what to return */
+    tmp = ((unsigned char)returnValue) >> (stream->bitCount);
+    tmp |= ((stream->bitBuffer) << (8 - (stream->bitCount)));
 
-        /* put remaining in buffer. count shouldn't change. */
-        stream->bitBuffer = returnValue;
+    /* put remaining in buffer. count shouldn't change. */
+    stream->bitBuffer = returnValue;
 
-        returnValue = tmp;
+    returnValue = tmp;
 
     return returnValue;
 }
@@ -704,7 +696,7 @@ __host__ __device__ int readChar(BitPointer *stream)
 ***************************************************************************/
 __host__ __device__ int readBits(BitPointer *stream, void *bits, const unsigned int count)
 {
-    unsigned char *bytes/*, shifts*/;
+    unsigned char *bytes /*, shifts*/;
     int offset, remaining, returnValue;
 
     bytes = (unsigned char *)bits;
@@ -735,13 +727,10 @@ __host__ __device__ int readBits(BitPointer *stream, void *bits, const unsigned 
             bytes[offset] |= (returnValue & 0x01);
             remaining--;
         }
-
     }
 
     return count;
 }
-
-
 
 /****************************************************************************
 *   Function   : getUnscaledCode
@@ -752,9 +741,9 @@ __host__ __device__ int readBits(BitPointer *stream, void *bits, const unsigned 
 *   Effects    : None
 *   Returned   : The probability of the current symbol
 ****************************************************************************/
-__host__ __device__ probability_t getUnscaledCode(probability_t &lower,probability_t &upper,probability_t &code, probability_t& cumulativeProb)
+__host__ __device__ probability_t getUnscaledCode(probability_t &lower, probability_t &upper, probability_t &code, probability_t &cumulativeProb)
 {
-     unsigned int range;        /* must be able to hold max upper + 1 */
+    unsigned int range; /* must be able to hold max upper + 1 */
     unsigned int unscaled;
 
     range = (unsigned int)(upper - lower) + 1;
@@ -776,44 +765,43 @@ __host__ __device__ probability_t getUnscaledCode(probability_t &lower,probabili
 *   Effects    : None
 *   Returned   : -1 for failure, otherwise encoded symbol
 ****************************************************************************/
-__host__ __device__ __inline int getSymbolFromProbability(probability_t probability,AdaptiveProbabilityRange& r)
+__host__ __device__ __inline int getSymbolFromProbability(probability_t probability, AdaptiveProbabilityRange &r)
 {
-    int first, last, middle;    /* indicies for binary search */
+    int first, last, middle; /* indicies for binary search */
 
     first = 0;
     last = UPPER(EOF_CHAR);
-    middle = last >>1;
+    middle = last >> 1;
 
     /* binary search */
     while (last >= first)
     {
-        if (probability < getRange(LOWER(middle),r))
+        if (probability < getRange(LOWER(middle), r))
         {
             /* lower bound is higher than probability */
             last = middle - 1;
-            middle = first + ((last - first) >>1);
+            middle = first + ((last - first) >> 1);
             continue;
         }
 
-        if (probability >= getRange(UPPER(middle),r))
+        if (probability >= getRange(UPPER(middle), r))
         {
             /* upper bound is lower than probability */
             first = middle + 1;
-            middle = first + ((last - first) >>1);
+            middle = first + ((last - first) >> 1);
             continue;
         }
 
         /* we must have found the right value */
         return middle;
     }
-	
-    #if _DEBUG
+
+#if _DEBUG
     assert("Unknown Symbol");
-    //cuPrintf("Unknown Symbol: %d (max: %d)\n", probability, r.ranges[UPPER(EOF_CHAR)]);
-    #endif
+//cuPrintf("Unknown Symbol: %d (max: %d)\n", probability, r.ranges[UPPER(EOF_CHAR)]);
+#endif
     return -1;
 }
-
 
 /***************************************************************************
 *   Function   : readEncodedBits
@@ -837,15 +825,15 @@ __host__ __device__ __inline int getSymbolFromProbability(probability_t probabil
 *                encoded stream.
 *   Returned   : None
 ***************************************************************************/
-__host__ __device__ void readEncodedBits(BitPointer *bfpIn,probability_t &lower,probability_t &upper,probability_t &code)
+__host__ __device__ void readEncodedBits(BitPointer *bfpIn, probability_t &lower, probability_t &upper, probability_t &code)
 {
-    int nextBit;        /* next bit from encoded input */
+    int nextBit; /* next bit from encoded input */
 
     for (;;)
     {
-        if (( upper & MASK_BIT(0)) == (lower & MASK_BIT(0)))
+        if ((upper & MASK_BIT(0)) == (lower & MASK_BIT(0)))
         {
-                        /* MSBs match, allow them to be shifted out*/
+            /* MSBs match, allow them to be shifted out*/
         }
         else if ((lower & MASK_BIT(1)) && !(upper & MASK_BIT(1)))
         {
@@ -854,8 +842,8 @@ __host__ __device__ void readEncodedBits(BitPointer *bfpIn,probability_t &lower,
             * match.  It must be the case that lower and upper have MSBs of
             * 01 and 10.  Remove 2nd MSB from lower and upper.
             ***************************************************************/
-                        lower   &= ~(MASK_BIT(0) | MASK_BIT(1));
-            upper  |= MASK_BIT(1);
+            lower &= ~(MASK_BIT(0) | MASK_BIT(1));
+            upper |= MASK_BIT(1);
             code ^= MASK_BIT(1);
 
             /* the shifts below make the rest of the bit removal work */
@@ -881,7 +869,7 @@ __host__ __device__ void readEncodedBits(BitPointer *bfpIn,probability_t &lower,
         }
         else
         {
-            code |= nextBit;                /* add next encoded bit to code */
+            code |= nextBit; /* add next encoded bit to code */
         }
     }
 
@@ -898,110 +886,110 @@ __host__ __device__ void readEncodedBits(BitPointer *bfpIn,probability_t &lower,
 *   Effects    : Encoded file is decoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ***************************************************************************/
-__host__ __device__ size_t arDecompress(const unsigned char *fpIn,const size_t inSize ,unsigned char *fpOut,AdaptiveProbabilityRange& r, probability_t& cumulativeProb)
+__host__ __device__ size_t arDecompress(const unsigned char *fpIn, const size_t inSize, unsigned char *fpOut, AdaptiveProbabilityRange &r, probability_t &cumulativeProb)
 {
     int c;
     probability_t unscaled;
-     BitPointer bfpIn = createBitPointer((unsigned char*)fpIn+PACKET_HEADER_LENGTH);
-    
+    BitPointer bfpIn = createBitPointer((unsigned char *)fpIn + PACKET_HEADER_LENGTH);
 
-		    /* initialize coder start with full probability range [0%, 100%) */
+    /* initialize coder start with full probability range [0%, 100%) */
     probability_t lower;
-    probability_t upper;                     /* all ones */
+    probability_t upper; /* all ones */
     probability_t code;
-	unsigned char* dstPointer = fpOut;
-	const size_t decompressedSize = getUncompressedSize(fpIn);
+    unsigned char *dstPointer = fpOut;
+    const size_t decompressedSize = getUncompressedSize(fpIn);
 
-	//bfpIn->fp = ;
-
+    //bfpIn->fp = ;
 
     /* read start of code and initialize bounds, and adaptive ranges */
-   initializeDecoder(&bfpIn,lower,upper,code);
+    initializeDecoder(&bfpIn, lower, upper, code);
 
     /* decode one symbol at a time */
-    while( (dstPointer-fpOut)< decompressedSize)
+    while ((dstPointer - fpOut) < decompressedSize)
     {
         //printf("%02X\t%d\t%d\n", lower, upper, code);
-		
-		/* get the unscaled probability of the current symbol */
-        unscaled = getUnscaledCode(lower,upper,code,cumulativeProb);
+
+        /* get the unscaled probability of the current symbol */
+        unscaled = getUnscaledCode(lower, upper, code, cumulativeProb);
 
         /* figure out which symbol has the above probability */
-        if((c = getSymbolFromProbability(unscaled,r)) == -1)
+        if ((c = getSymbolFromProbability(unscaled, r)) == -1)
         {
             /* error: unknown symbol */
             break;
         }
-		
-	    dstPointer[0]=c;
-		++dstPointer;
 
+        dstPointer[0] = c;
+        ++dstPointer;
 
         //fputc((char)c, fpOut);
 
         /* factor out symbol */
-        applySymbolRange(c,r,lower,upper, cumulativeProb);
-        readEncodedBits(&bfpIn,lower,upper,code);
+        applySymbolRange(c, r, lower, upper, cumulativeProb);
+        readEncodedBits(&bfpIn, lower, upper, code);
     }
 
-    return dstPointer-fpOut;
+    return dstPointer - fpOut;
 }
 
 __global__ void garCompress(const unsigned char *source, size_t size, unsigned char *destination)
 {
-  
-  __shared__ AdaptiveProbabilityRange sharedMemory[NUM_THREADS];
-  const int index = blockIdx.x * blockDim.x+ threadIdx.x;
-  const unsigned int startPosition = index*UNCOMPRESSED_PACKET_SIZE;
-  AdaptiveProbabilityRange* start =  sharedMemory + threadIdx.x;
-  probability_t cumProb = INITIALIZED_CUMULATIVE_PROB;
-  
-  if(startPosition<size){
-	size_t packetSize = size-startPosition;
-	  
-	start[0]= INITIALIZED_RANGE[0];
-	if(packetSize>UNCOMPRESSED_PACKET_SIZE){
-	    packetSize = UNCOMPRESSED_PACKET_SIZE;
-	}
-	arCompress(source+startPosition, packetSize, destination+(index*COMPRESSED_PACKET_SIZE),*start, cumProb);
-	}
+
+    __shared__ AdaptiveProbabilityRange sharedMemory[NUM_THREADS];
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int startPosition = index * UNCOMPRESSED_PACKET_SIZE;
+    AdaptiveProbabilityRange *start = sharedMemory + threadIdx.x;
+    probability_t cumProb = INITIALIZED_CUMULATIVE_PROB;
+
+    if (startPosition < size)
+    {
+        size_t packetSize = size - startPosition;
+
+        start[0] = INITIALIZED_RANGE[0];
+        if (packetSize > UNCOMPRESSED_PACKET_SIZE)
+        {
+            packetSize = UNCOMPRESSED_PACKET_SIZE;
+        }
+        arCompress(source + startPosition, packetSize, destination + (index * COMPRESSED_PACKET_SIZE), *start, cumProb);
+    }
 }
 
 __global__ void garDecompress(const unsigned char *source, size_t size, unsigned char *destination)
 {
-  
-  __shared__ AdaptiveProbabilityRange sharedMemory[NUM_THREADS];
-  const int index = blockIdx.x * blockDim.x+ threadIdx.x;
-  const size_t startPosition = index*COMPRESSED_PACKET_SIZE;
-  const unsigned char * startSrc = source+startPosition;
-  AdaptiveProbabilityRange* start =  sharedMemory + threadIdx.x;
-  unsigned char* data=   destination+(index*UNCOMPRESSED_PACKET_SIZE);
-  probability_t cumProb = INITIALIZED_CUMULATIVE_PROB;
-  if(startPosition<size){
-	//size_t packetSize = size-startPosition;
-	start[0]= INITIALIZED_RANGE[0];
-    /*size_t packetSize = */
-    arDecompress(startSrc, getCompressedSize(startSrc),data,*start,cumProb);
-	 //write(packetSize, data +2,2);
-	
-	}
-	
+
+    __shared__ AdaptiveProbabilityRange sharedMemory[NUM_THREADS];
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    const size_t startPosition = index * COMPRESSED_PACKET_SIZE;
+    const unsigned char *startSrc = source + startPosition;
+    AdaptiveProbabilityRange *start = sharedMemory + threadIdx.x;
+    unsigned char *data = destination + (index * UNCOMPRESSED_PACKET_SIZE);
+    probability_t cumProb = INITIALIZED_CUMULATIVE_PROB;
+    if (startPosition < size)
+    {
+        //size_t packetSize = size-startPosition;
+        start[0] = INITIALIZED_RANGE[0];
+        /*size_t packetSize = */
+        arDecompress(startSrc, getCompressedSize(startSrc), data, *start, cumProb);
+        //write(packetSize, data +2,2);
+    }
 }
 
-void garCompressExecutor(const unsigned char *source, size_t size, unsigned char *destination,unsigned int numBlocks){
-        
-        garCompress<<<numBlocks,NUM_THREADS>>>(source, size, destination);
+void garCompressExecutor(const unsigned char *source, size_t size, unsigned char *destination, unsigned int numBlocks)
+{
 
-        #ifdef _DEBUG
-        getLastCudaError("Execute garCompress kenenl failed");
-        #endif
+    garCompress<<<numBlocks, NUM_THREADS>>>(source, size, destination);
+
+#ifdef _DEBUG
+    getLastCudaError("Execute garCompress kenenl failed");
+#endif
 }
 
-void garDecompressExecutor(const unsigned char *source, size_t size, unsigned char *destination,unsigned int numBlocks){
-        
-        garDecompress<<<numBlocks,NUM_THREADS>>>(source, size, destination);
+void garDecompressExecutor(const unsigned char *source, size_t size, unsigned char *destination, unsigned int numBlocks)
+{
 
-        #ifdef _DEBUG
-        getLastCudaError("Execute garCompress kenenl failed");
-        #endif
+    garDecompress<<<numBlocks, NUM_THREADS>>>(source, size, destination);
+
+#ifdef _DEBUG
+    getLastCudaError("Execute garCompress kenenl failed");
+#endif
 }

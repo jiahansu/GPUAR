@@ -126,9 +126,9 @@ int main(int argc, char **argv)
             std::cout << "Uncompressed file size " << info.uncompressedFileSize << " bytes" << std::endl;
             std::cout << "Compressed file size  " << info.compressedFileSize << " bytes" << std::endl;
             std::cout << "Compression ratio     " << compressionRatio << std::endl;
-            std::cout << "Compute time           " << info.processTime / 1000 << " s" << std::endl;
-            std::cout << "I/O time               " << info.ioTime / 1000 << " s" << std::endl;
-            std::cout << "Score                  " << (1000 / (pow(compressionRatio, 0.6) * pow(info.processTime / 1000, 0.4))) << std::endl;
+            std::cout << "Compute time          " << info.processTime / 1000 << " s" << std::endl;
+            std::cout << "I/O time              " << info.ioTime / 1000 << " s" << std::endl;
+            std::cout << "Score                 " << (1000 / (pow(compressionRatio, 0.6) * pow(info.processTime / 1000, 0.4))) << std::endl;
             //compressor->generateRandomFile(64*1024*1024);
 
             delete compressor;
