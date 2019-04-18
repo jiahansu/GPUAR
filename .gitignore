@@ -9,3 +9,5 @@ test.*
 *.o.tmp
 .DS_Store
 gpuar
+compress.gip
+decompress.dat

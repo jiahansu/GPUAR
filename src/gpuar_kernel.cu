@@ -933,7 +933,7 @@ __host__ __device__ size_t arDecompress(const unsigned char *fpIn,const size_t i
             break;
         }
 		
-		dstPointer[0]=c;
+	    dstPointer[0]=c;
 		++dstPointer;
 
 
