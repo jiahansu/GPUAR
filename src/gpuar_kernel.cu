@@ -73,7 +73,7 @@ __host__ __device__ void write(unsigned int f, void *dst, size_t bytes)
     }
 }
 
-__host__ __device__ __inline int putChar(const int c, BitPointer *stream)
+__host__ __device__  int putChar(const int c, BitPointer *stream)
 {
     stream->fp[0] = c;
     ++stream->fp;
@@ -92,7 +92,7 @@ __host__ __device__ __inline int putChar(const int c, BitPointer *stream)
 *   Effects    : Writes a byte to the file and updates buffer accordingly.
 *   Returned   : On success, the character written, otherwise EOF.
 ***************************************************************************/
-__host__ __device__ __inline int writeChar(const int c, BitPointer *stream)
+__host__ __device__  int writeChar(const int c, BitPointer *stream)
 {
     unsigned char tmp;
 
@@ -125,7 +125,7 @@ __host__ __device__ __inline int writeChar(const int c, BitPointer *stream)
 *                the buffer is written to the file and cleared.
 *   Returned   : On success, the bit value written, otherwise EOF.
 ***************************************************************************/
-__host__ __device__ __inline int writeBit(const int c, BitPointer *stream)
+__host__ __device__  int writeBit(const int c, BitPointer *stream)
 {
     int returnValue = c;
 
@@ -165,7 +165,7 @@ __host__ __device__ __inline int writeBit(const int c, BitPointer *stream)
 *                an error occurs after a partial write, the partially
 *                written bits will not be unwritten.
 ***************************************************************************/
-__host__ __device__ __inline int writeBits(BitPointer *stream, void *bits, const unsigned int count)
+__host__ __device__  int writeBits(BitPointer *stream, void *bits, const unsigned int count)
 {
     unsigned char *bytes, tmp;
     int offset, remaining /*, returnValue*/;
@@ -202,17 +202,17 @@ __host__ __device__ __inline int writeBits(BitPointer *stream, void *bits, const
     return count;
 }
 
-__host__ __device__ __inline int forward(const int symbol)
+__host__ __device__  int forward(const int symbol)
 {
     return symbol + (symbol & (-symbol));
 }
 
-__host__ __device__ __inline int backward(const int symbol)
+__host__ __device__  int backward(const int symbol)
 {
     return symbol & (symbol - 1);
 }
 
-__host__ __device__ __inline probability_t getRange(const int symbol, AdaptiveProbabilityRange &r)
+__host__ __device__  probability_t getRange(const int symbol, AdaptiveProbabilityRange &r)
 {
     int i = symbol;
     probability_t h = 0;
@@ -226,7 +226,7 @@ __host__ __device__ __inline probability_t getRange(const int symbol, AdaptivePr
     return h;
 }
 
-__host__ __device__ __inline void update(const int symbol, AdaptiveProbabilityRange &r)
+__host__ __device__  void update(const int symbol, AdaptiveProbabilityRange &r)
 {
     int i = symbol;
 
@@ -253,7 +253,7 @@ __host__ __device__ __inline void update(const int symbol, AdaptiveProbabilityRa
 *                probability range list will be updated.
 *   Returned   : None
 ***************************************************************************/
-__host__ __device__ __inline void applySymbolRange(const int symbol, AdaptiveProbabilityRange &r, probability_t &lower, probability_t &upper, probability_t &cumulativeProb)
+__host__ __device__  void applySymbolRange(const int symbol, AdaptiveProbabilityRange &r, probability_t &lower, probability_t &upper, probability_t &cumulativeProb)
 {
     unsigned int range;    /* must be able to hold max upper + 1 */
     unsigned int rescaled; /* range rescaled for range of new symbol */
@@ -353,7 +353,7 @@ __host__ __device__ __inline void applySymbolRange(const int symbol, AdaptivePro
 *                addition of a new symbol to the encoded stream.
 *   Returned   : None
 ***************************************************************************/
-__host__ __device__ __inline void writeEncodedBits(BitPointer *bfpOut, probability_t &lower, probability_t &upper, probability_t &underflowBits)
+__host__ __device__  void writeEncodedBits(BitPointer *bfpOut, probability_t &lower, probability_t &upper, probability_t &underflowBits)
 {
     for (;;)
     {
@@ -411,7 +411,7 @@ __host__ __device__ __inline void writeEncodedBits(BitPointer *bfpOut, probabili
 *                file.
 *   Returned   : None
 ***************************************************************************/
-__host__ __device__ __inline void writeRemaining(BitPointer *bfpOut, probability_t &lower, probability_t &upper, probability_t &underflowBits /* current underflow bit count */)
+__host__ __device__  void writeRemaining(BitPointer *bfpOut, probability_t &lower, probability_t &upper, probability_t &underflowBits /* current underflow bit count */)
 {
     writeBit((lower & MASK_BIT(1)) != 0, bfpOut);
 
@@ -435,7 +435,7 @@ __host__ __device__ __inline void writeRemaining(BitPointer *bfpOut, probability
 *                for each symbol.
 *   Returned   : NONE
 ***************************************************************************/
-__host__ __device__ __inline void initializeAdaptiveProbabilityRangeList(AdaptiveProbabilityRange *r, probability_t &cumulativeProb)
+__host__ __device__  void initializeAdaptiveProbabilityRangeList(AdaptiveProbabilityRange *r, probability_t &cumulativeProb)
 {
     int c;
 
@@ -462,7 +462,7 @@ __host__ __device__ __inline void initializeAdaptiveProbabilityRangeList(Adaptiv
 *                will be freed.
 *   Returned   : 0 for success or EOF for failure.
 ***************************************************************************/
-__host__ __device__ __inline void writeClose(BitPointer *stream)
+__host__ __device__  void writeClose(BitPointer *stream)
 {
 
     /* write out any unwritten bits */
@@ -571,7 +571,7 @@ __host__ __device__ size_t arCompress(const unsigned char *fpIn, const size_t si
     return length;
 }
 
-__host__ __device__ __inline int getChar(BitPointer *stream)
+__host__ __device__  int getChar(BitPointer *stream)
 {
     //;
 
@@ -765,7 +765,7 @@ __host__ __device__ probability_t getUnscaledCode(probability_t &lower, probabil
 *   Effects    : None
 *   Returned   : -1 for failure, otherwise encoded symbol
 ****************************************************************************/
-__host__ __device__ __inline int getSymbolFromProbability(probability_t probability, AdaptiveProbabilityRange &r)
+__host__ __device__  int getSymbolFromProbability(probability_t probability, AdaptiveProbabilityRange &r)
 {
     int first, last, middle; /* indicies for binary search */
 
