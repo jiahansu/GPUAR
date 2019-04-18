@@ -1,0 +1,10 @@
+/build
+/shader
+.vscode
+test
+test.*
+*.spv
+*.pdb
+*.o
+*.o.tmp
+.DS_Store
