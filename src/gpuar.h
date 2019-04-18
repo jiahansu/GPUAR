@@ -47,15 +47,14 @@ struct __align__(4) AdaptiveProbabilityRange
     //probability_t cumulativeProb;   /* cumulative probability  of all ranges */
 };
 
-typedef struct __align__(16)
+struct __align__(16) BitPointer
 {
     //public:
     unsigned char *fp;      /* file pointer used by stdio functions */
                             //unsigned char *fpEnd;
     bitbuffer bitBuffer;    /* bits waiting to be read/written */
     unsigned char bitCount; /* number of bits in bitBuffer */
-}
-BitPointer;
+};
 
 #ifdef __cplusplus
 extern "C"

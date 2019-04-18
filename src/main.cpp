@@ -36,12 +36,12 @@ int main(int argc, char **argv)
             std::cout << "where options inclide:" << std::endl;
             std::cout << "c             compress input file" << std::endl;
             std::cout << "d             decompress input file" << std::endl;
-            std::cout << "--in            input file" << std::endl;
-            std::cout << "--out           outputt file" << std::endl;
-            std::cout << "--help          print this help message" << std::endl;
-            std::cout << "--host          execute kernel code on host (cpu mode), otherwise execute kernel code on CUDA device" << std::endl;
+            std::cout << "--in          input file" << std::endl;
+            std::cout << "--out         outputt file" << std::endl;
+            std::cout << "--help        print this help message" << std::endl;
+            std::cout << "--host        execute kernel code on host (cpu mode), otherwise execute kernel code on CUDA device" << std::endl;
 
-            std::cout << "--device        specify CUDA device, otherwise use device with highest Gflops/s" << std::endl;
+            std::cout << "--device      specify CUDA device, otherwise use device with highest Gflops/s" << std::endl;
             std::cout << "--nointeractive no interactive mode" << std::endl;
 
             exit(0);
@@ -124,8 +124,8 @@ int main(int argc, char **argv)
                       << std::endl;
             std::cout << "Statistics: " << std::endl;
             std::cout << "Uncompressed file size " << info.uncompressedFileSize << " bytes" << std::endl;
-            std::cout << "Ccompressed file size  " << info.compressedFileSize << " bytes" << std::endl;
-            std::cout << "Ccompression ratio     " << compressionRatio << std::endl;
+            std::cout << "Compressed file size  " << info.compressedFileSize << " bytes" << std::endl;
+            std::cout << "Compression ratio     " << compressionRatio << std::endl;
             std::cout << "Compute time           " << info.processTime / 1000 << " s" << std::endl;
             std::cout << "I/O time               " << info.ioTime / 1000 << " s" << std::endl;
             std::cout << "Score                  " << (1000 / (pow(compressionRatio, 0.6) * pow(info.processTime / 1000, 0.4))) << std::endl;
