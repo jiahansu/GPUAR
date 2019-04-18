@@ -8,3 +8,4 @@ test.*
 *.o
 *.o.tmp
 .DS_Store
+gpuar
