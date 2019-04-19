@@ -2,7 +2,7 @@
 A CUDA implementation of Arithmetic Coding
 
 ## System Requirement
-1. CUDA compatible-GPU which supports compute capability 1.2 or higher.
+1. CUDA compatible-GPU which supports compute capability 2.1 or higher.
 2. Cuda Toolkit 9.0 or higher for compiling.
 
 ## Compile
