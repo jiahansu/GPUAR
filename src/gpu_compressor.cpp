@@ -1,308 +1,18 @@
-
-/*
-* NOTICE TO USER:
-*
-* This source code is subject to Jia-Han Su.
-*/
-
-/*
-   GPUAR source code
-   Version 0.1 - first release
-*/
-
-#include "container.h"
+#include "gpu_compressor.hpp"
+#include "file_header.hpp"
 
 using namespace gip;
 
-void gip::ProgressMonitor::updateProgress(const CompressionInfo *info)
-{
-    const unsigned short lastPercent = this->currentRatio * 100;
-    unsigned short currentPercent;
-
-    this->currentRatio = (double)info->processedUncompressedSize / info->uncompressedFileSize;
-    currentPercent = this->currentRatio * 100;
-
-    if ((lastPercent / 10) != (currentPercent / 10))
-    {
-        std::cout << currentPercent << "%.." << std::flush;
-        if (currentPercent >= 100)
-        {
-            std::cout << "Closing file..";
-        }
-    }
-}
-
-gip::Compressor::Compressor() : openFileName(""), saveFileName(""), process_timer(nullptr), io_timer(nullptr)
-{
-    if (UNCOMPRESSED_PACKET_SIZE % sizeof(READ_ELEMENT) > 0)
-    {
-        throw string("The input packet size must be the multiple of READ_ELEMENT!");
-    }
-
-    if (UNCOMPRESSED_PACKET_SIZE >= MAX_PROBABILITY - UPPER(EOF_CHAR))
-    {
-        throw string("The packet's size was too large that to occur overflow problem");
-    }
-
-    this->openFile = NULL;
-    this->saveFile = NULL;
-    sdkCreateTimer(&this->process_timer);
-    sdkCreateTimer(&this->io_timer);
-
-    //	cudaMallocHost((void**)&input,INPUT_BUFFER_SIZE);
-    //	cudaMallocHost((void**)&hashtable,sizeof(short)*HASH_VALUES);
-    cudaMallocHost((void **)&data, UNCOMPRESSED_PACKET_SIZE);
-    cudaMallocHost((void **)&compressed, COMPRESSED_PACKET_SIZE);
-    cudaMallocHost((void **)&this->range, sizeof(AdaptiveProbabilityRange));
-}
-
-gip::Compressor::~Compressor()
-{
-    sdkDeleteTimer(&this->process_timer);
-    sdkDeleteTimer(&this->io_timer);
-
-    //checkCudaErrors(cudaFreeHost(input));
-    //checkCudaErrors(cudaFreeHost(hashtable));
-    checkCudaErrors(cudaFreeHost(data));
-    checkCudaErrors(cudaFreeHost(compressed));
-    checkCudaErrors(cudaFreeHost(this->range));
-}
-
-void gip::Compressor::generateRandomFile(const size_t size)
-{
-    int d;
-
-    saveFile = fopen(this->saveFileName.c_str(), "wb");
-
-    for (int i = 0; i < size; i += 4)
-    {
-        d = rand();
-        if (fwrite(&d, sizeof(int), 1, saveFile) <= 0)
-        {
-            throw "Write raw data to file failed";
-        }
-    }
-
-    this->closeFiles();
-}
-
-gip::CPUCompressor::CPUCompressor()
-{
-}
-
-CompressionInfo gip::CPUCompressor::decompress(ProgressMonitor *monitor)
-{
-    CompressionInfo info;
-
-    openFile = fopen(this->openFileName.c_str(), "rb");
-    saveFile = fopen(this->saveFileName.c_str(), "wb");
-    int size = 0;
-    FileHeader fileHeader;
-    size_t r;
-    unsigned int packetSize;
-    probability_t cumProb;
-    try
-    {
-        monitor->reset();
-        if (openFile != NULL && saveFile != NULL)
-        {
-
-            cutilCheckError(sdkResetTimer(&process_timer));
-            cutilCheckError(sdkResetTimer(&io_timer));
-
-            cutilCheckError(sdkStartTimer(&io_timer));
-            //read file header
-            if (fread(fileHeader.getData(), FileHeader::HEADER_LENGTH, 1, openFile) <= 0)
-            {
-                ;
-                throw "Incorrect file format";
-            }
-            else
-            {
-                //memcpy(fileHeader.getData(),data,FileHeader::HEADER_LENGTH);
-
-                cutilCheckError(sdkStopTimer(&io_timer));
-
-                if (fileHeader.checkHeaderVersion())
-                {
-                    info = fileHeader.getInfo();
-
-                    do
-                    {
-                        cutilCheckError(sdkStartTimer(&io_timer));
-                        size = fread(compressed, PACKET_HEADER_LENGTH, 1, openFile);
-                        cutilCheckError(sdkStopTimer(&io_timer));
-                        if (size > 0)
-                        {
-                            packetSize = getCompressedSize(compressed); //read(compressed,2);
-
-                            if (fread(compressed + PACKET_HEADER_LENGTH, packetSize - PACKET_HEADER_LENGTH, 1, openFile) > 0)
-                            {
-                                cutilCheckError(sdkStartTimer(&process_timer));
-                                initializeAdaptiveProbabilityRangeList(this->range, cumProb);
-                                r = arDecompress(compressed, packetSize, (unsigned char *)data, *range, cumProb);
-                                info.processedUncompressedSize += r;
-                                cutilCheckError(sdkStopTimer(&process_timer));
-
-                                cutilCheckError(sdkStartTimer(&io_timer));
-                                if (fwrite(data, r, 1, saveFile) <= 0)
-                                {
-                                    throw "Write raw data to file failed";
-                                }
-                                cutilCheckError(sdkStopTimer(&io_timer));
-
-                                monitor->updateProgress(&info);
-                            }
-                            else
-                            {
-                                throw "Incorrect file format";
-                            }
-                        }
-                    } while (!feof(openFile));
-                }
-                else
-                {
-                    throw "Incorrect file format";
-                }
-            }
-        }
-        else
-        {
-
-            throw "Open file failed";
-        }
-    }
-    catch (exception e)
-    {
-        this->closeFiles();
-
-        throw;
-    }
-    cutilCheckError(sdkStartTimer(&io_timer));
-    this->closeFiles();
-    cutilCheckError(sdkStopTimer(&io_timer));
-
-    info.processTime = sdkGetTimerValue(&process_timer);
-    info.ioTime = sdkGetTimerValue(&io_timer);
-
-    return info;
-}
-//checkCudaErrors(cudaFreeHost(packetHeader));
-gip::CPUCompressor::~CPUCompressor()
-{
-}
-
-CompressionInfo gip::CPUCompressor::compress(ProgressMonitor *monitor)
-{
-    CompressionInfo info;
-    openFile = fopen(this->openFileName.c_str(), "rb");
-    saveFile = fopen(this->saveFileName.c_str(), "wb");
-    int size = 0;
-    FileHeader fileHeader;
-    size_t r;
-    probability_t cumulativeProb;
-
-    try
-    {
-        monitor->reset();
-
-        cutilCheckError(sdkResetTimer(&process_timer));
-        cutilCheckError(sdkResetTimer(&io_timer));
-
-        cutilCheckError(sdkStartTimer(&io_timer));
-        if (fseek(saveFile, FileHeader::HEADER_LENGTH, SEEK_SET) != 0)
-        {
-            throw "Seek file failed";
-        }
-        cutilCheckError(sdkStopTimer(&io_timer));
-
-        info.compressedFileSize = FileHeader::HEADER_LENGTH;
-
-        if (openFile != NULL && saveFile != NULL)
-        {
-            cutilCheckError(sdkStartTimer(&io_timer));
-            info.uncompressedFileSize = this->getFileSize(openFile);
-            fseek(openFile, 0, SEEK_SET);
-            cutilCheckError(sdkStopTimer(&io_timer));
-            do
-            {
-
-                cutilCheckError(sdkStartTimer(&io_timer));
-                size = fread(data, sizeof(char), UNCOMPRESSED_PACKET_SIZE, openFile);
-                cutilCheckError(sdkStopTimer(&io_timer));
-
-                info.processedUncompressedSize += size;
-
-                if (size > 0)
-                {
-                    //info.uncompressedFileSize+=size;
-
-                    cutilCheckError(sdkStartTimer(&process_timer));
-
-                    initializeAdaptiveProbabilityRangeList(this->range, cumulativeProb);
-                    r = arCompress((const unsigned char *)data, size, (unsigned char *)compressed, *range, cumulativeProb);
-                    cutilCheckError(sdkStopTimer(&process_timer));
-                    info.compressedFileSize += r;
-
-                    cutilCheckError(sdkStartTimer(&io_timer));
-                    if (fwrite(compressed, r, 1, saveFile) <= 0)
-                    {
-                        throw "Write data to file failed";
-                    }
-                    cutilCheckError(sdkStopTimer(&io_timer));
-
-                    monitor->updateProgress(&info);
-                }
-            } while (!feof(openFile));
-
-            cutilCheckError(sdkStartTimer(&io_timer));
-            if (fseek(saveFile, 0, SEEK_SET))
-            {
-                throw "Seek file failed";
-            }
-            fileHeader.setCompressedFileSize(info.compressedFileSize);
-            fileHeader.setUncompressedFileSize(info.uncompressedFileSize);
-            if (fwrite(fileHeader.getData(), FileHeader::HEADER_LENGTH, 1, saveFile) <= 0)
-            {
-                throw "Write data to file failed";
-            }
-            cutilCheckError(sdkStopTimer(&io_timer));
-        }
-        else
-        {
-
-            throw "Open files failed";
-        }
-    }
-    catch (exception e)
-    {
-        this->closeFiles();
-        throw;
-    }
-    cutilCheckError(sdkStartTimer(&io_timer));
-    this->closeFiles();
-    cutilCheckError(sdkStopTimer(&io_timer));
-
-    info.processTime = sdkGetTimerValue(&process_timer);
-    info.ioTime = sdkGetTimerValue(&io_timer);
-
-    return info;
-}
-gip::GPUCompressor::GPUCompressor()
+gip::GPUCompressor::GPUCompressor(): numBlocks(0), totalThreads(0), uncompressedDataBufferSize(0), inputStreams{}, outputStream(0), 
+    deviceUncompressedData(nullptr), deviceCompressedData(nullptr), inputPacketBuffer(nullptr), outputPacketBuffer(nullptr)
 {
 
     const int deviceID = gpuGetMaxGflopsDeviceId();
-
+    /*
     for (int i = 0; i < GPUCompressor::NUM_STREAMS; ++i)
     {
         this->inputStreams[i] = 0;
-    }
-    this->outputStream = 0;
-
-    deviceUncompressedData = NULL;
-    deviceCompressedData = NULL;
-    inputPacketBuffer = NULL;
-    outputPacketBuffer = NULL;
+    }*/
 
     this->chooseDevice(deviceID);
 
@@ -537,6 +247,7 @@ CompressionInfo gip::GPUCompressor::decompress(ProgressMonitor *monitor)
     uint32_t writeOutNumPackets;
     uint32_t blocks;
     uint32_t maxCompressedPackets = NUM_THREADS * this->numBlocks;
+    size_t r;
     //size_t writeSize =0;
 
     try
@@ -590,7 +301,11 @@ CompressionInfo gip::GPUCompressor::decompress(ProgressMonitor *monitor)
                                 if (size > 0)
                                 {
                                     size = getCompressedSize(inputPacketBuffer + inputBufferOffset); //read(compressed,2);
-                                    fread(inputPacketBuffer + inputBufferOffset + PACKET_HEADER_LENGTH, sizeof(unsigned char), size - PACKET_HEADER_LENGTH, openFile);
+                                    r = fread(inputPacketBuffer + inputBufferOffset + PACKET_HEADER_LENGTH, sizeof(uint8_t), size - PACKET_HEADER_LENGTH, openFile);
+
+                                    if(r!=size - PACKET_HEADER_LENGTH){
+                                        throw "Invalid file length";
+                                    }
 
                                     cudaMemcpyAsync(deviceCompressedData + (numPackets * COMPRESSED_PACKET_SIZE), inputPacketBuffer + inputBufferOffset, size, cudaMemcpyHostToDevice, this->inputStreams[inputStreamIndex]);
                                     ++numPackets;
@@ -677,55 +392,4 @@ CompressionInfo gip::GPUCompressor::decompress(ProgressMonitor *monitor)
     info.ioTime = sdkGetTimerValue(&io_timer);
 
     return info;
-}
-
-//#define _DEBUG
-
-void test(int argc, char **argv)
-{
-    char original[] = "LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.";
-    unsigned char compressed[705 + 512];
-    AdaptiveProbabilityRange range[1];
-    size_t r;
-    probability_t cumProb;
-
-    //unsigned char* input=NULL;
-    //short* hashtable=NULL;
-
-    StopWatchInterface *timer = nullptr;
-
-    sdkCreateTimer(&timer);
-
-    for (int i = 0; i < 1; ++i)
-    {
-
-        memset(compressed, 0, 705 + 512);
-
-        initializeAdaptiveProbabilityRangeList(range, cumProb);
-        sdkResetTimer(&timer);
-        sdkStartTimer(&timer);
-        //r = arEncode((const unsigned char*)original,strlen(original),compressed,705+512,range);
-        //r = lzCompress(original,(unsigned char*) compressed, strlen(original),hashtable,input);
-
-        r = arCompress((const unsigned char *)original, strlen(original), (unsigned char *)compressed, *range, cumProb);
-        //r = arCompress((const unsigned char*)original, strlen(original),(unsigned char*) compressed,range);
-        sdkStopTimer(&timer);
-        std::cout << "glz...Size:" << r << ", Time: " << sdkGetTimerValue(&timer) << std::endl;
-
-        memset(original, 0, strlen(original));
-        initializeAdaptiveProbabilityRangeList(range, cumProb);
-        sdkResetTimer(&timer);
-        sdkStartTimer(&timer);
-
-        r = arDecompress((const unsigned char *)compressed, r, (unsigned char *)original, *range, cumProb);
-        //r = lzDecompress(compressed, (unsigned char*)original);
-        sdkStopTimer(&timer);
-        std::cout << original << std::endl;
-        std::cout << "glz decompressed...Size:" << r << ", Time: " << sdkGetTimerValue(&timer) << std::endl;
-    }
-
-    //cudaFreeHost(compressed);
-    //cudaFreeHost(input);
-    //cudaFreeHost(hashtable);
-    exit(0);
 }

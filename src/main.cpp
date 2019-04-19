@@ -1,6 +1,57 @@
-#include "container.h"
+#include "cpu_compressor.hpp"
+#include "gpu_compressor.hpp"
+
 
 using namespace gip;
+
+void test(int argc, char **argv)
+{
+    char original[] = "LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.LZ compression is based on finding repeated strings: Five, six, seven, eight, nine, fifteen, sixteen, seventeen, fifteen, sixteen, seventeen.";
+    unsigned char compressed[705 + 512];
+    AdaptiveProbabilityRange range[1];
+    size_t r;
+    probability_t cumProb;
+
+    //unsigned char* input=NULL;
+    //short* hashtable=NULL;
+
+    StopWatchInterface *timer = nullptr;
+
+    sdkCreateTimer(&timer);
+
+    for (int i = 0; i < 1; ++i)
+    {
+
+        memset(compressed, 0, 705 + 512);
+
+        initializeAdaptiveProbabilityRangeList(range, cumProb);
+        sdkResetTimer(&timer);
+        sdkStartTimer(&timer);
+        //r = arEncode((const unsigned char*)original,strlen(original),compressed,705+512,range);
+        //r = lzCompress(original,(unsigned char*) compressed, strlen(original),hashtable,input);
+
+        r = arCompress((const unsigned char *)original, strlen(original), (unsigned char *)compressed, *range, cumProb);
+        //r = arCompress((const unsigned char*)original, strlen(original),(unsigned char*) compressed,range);
+        sdkStopTimer(&timer);
+        std::cout << "glz...Size:" << r << ", Time: " << sdkGetTimerValue(&timer) << std::endl;
+
+        memset(original, 0, strlen(original));
+        initializeAdaptiveProbabilityRangeList(range, cumProb);
+        sdkResetTimer(&timer);
+        sdkStartTimer(&timer);
+
+        r = arDecompress((const unsigned char *)compressed, r, (unsigned char *)original, *range, cumProb);
+        //r = lzDecompress(compressed, (unsigned char*)original);
+        sdkStopTimer(&timer);
+        std::cout << original << std::endl;
+        std::cout << "glz decompressed...Size:" << r << ", Time: " << sdkGetTimerValue(&timer) << std::endl;
+    }
+
+    //cudaFreeHost(compressed);
+    //cudaFreeHost(input);
+    //cudaFreeHost(hashtable);
+    exit(0);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Program main
