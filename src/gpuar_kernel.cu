@@ -3,7 +3,7 @@
 *
 *   Purpose : Use arithmetic coding to compress/decompress streams
 *   Original author for host code implementation: Michael Dipperstein
-*   Modify to CUDA implementation: Jia-Han Su.
+*   Optimize to CUDA implementation: Jia-Han Su.
 *   Date    : September 2, 2009
 *
 *****************************************************************************/
