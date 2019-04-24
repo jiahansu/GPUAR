@@ -219,7 +219,7 @@ __host__ __device__  probability_t getRange(const int32_t symbol, AdaptiveProbab
 
     while (i != 0)
     {
-        h = h + r.ranges[i];
+        h += r.ranges[i];
         i = backward(i);
     }
 
@@ -232,7 +232,7 @@ __host__ __device__  void update(const int32_t symbol, AdaptiveProbabilityRange 
 
     while (i <= UPPER(EOF_CHAR))
     {
-        r.ranges[i] = r.ranges[i] + 1;
+        ++r.ranges[i];
         i = forward(i);
     }
 }
@@ -286,42 +286,7 @@ __host__ __device__  void applySymbolRange(const int32_t symbol, AdaptiveProbabi
     ++cumulativeProb;
 
     update(UPPER(symbol), r);
-    /*
-		for (i = UPPER(symbol); i <= UPPER(EOF_CHAR); i++)
-        {
-            
-            r.ranges[i] += 1;
-        }*/
-
-    /* half current values if cumulativeProb is too large */
-    /*
-        if (r.cumulativeProb >= MAX_PROBABILITY)
-        {
-            probability_t original=0;    
-			probability_t delta;       
-
-			r.cumulativeProb = 0;
-            
-			#pragma unroll 256
-            for (i = 1; i <= UPPER(EOF_CHAR); i++)
-            {
-                delta = r.ranges[i] - original;
-                if (delta <= 2)
-                {
-                    
-                    original = r.ranges[i];
-                    r.ranges[i] = r.ranges[i - 1] + 1;
-                }
-                else
-                {
-                    original = r.ranges[i];
-                    r.ranges[i] = r.ranges[i - 1] + (delta >>1);
-                }
-
-                r.cumulativeProb += (r.ranges[i] - r.ranges[i - 1]);
-            }
-        }*/
-
+   
 #ifdef _DEBUG
     if (lower > upper)
     {
@@ -494,6 +459,21 @@ __host__ void initConstantRange()
     cudaMemcpyToSymbol(INITIALIZED_CUMULATIVE_PROB, &cumulativeProb, sizeof(probability_t));
 }
 
+__host__ __device__  void writeLongLong(const unsigned long long data,uint16_t &remaining, AdaptiveProbabilityRange &r, probability_t &lower, probability_t &upper, probability_t &underflowBits,probability_t &cumulativeProb, BitPointer& bfpOut)
+{
+    uint8_t bytesOffset = 0;
+    uint8_t c;
+
+    while (bytesOffset < sizeof(unsigned long long) && remaining > 0)
+    {
+         c = (uint8_t)(data >> (bytesOffset * 8));
+        applySymbolRange(c, r, lower, upper, cumulativeProb);
+        writeEncodedBits(&bfpOut, lower, upper, underflowBits);
+        ++bytesOffset;
+        --remaining;
+    }
+}
+
 /***************************************************************************
 *   Function   : arCompress
 *   Description: This routine generates a list of arithmetic code ranges for
@@ -504,21 +484,19 @@ __host__ void initConstantRange()
 *   Effects    : Binary data is arithmetically encoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ***************************************************************************/
-__host__ __device__ size_t arCompress(const uint8_t *fpIn, const size_t size, uint8_t *outFile, AdaptiveProbabilityRange &r, probability_t &cumulativeProb)
+__host__ __device__ uint16_t arCompress(const uint8_t *fpIn, const uint16_t size, uint8_t *outFile, AdaptiveProbabilityRange &r, probability_t &cumulativeProb)
 {
-    uint8_t c;
     BitPointer bfpOut = createBitPointer(outFile + PACKET_HEADER_LENGTH); /* encoded output */
 
     /* initialize coder start with full probability range [0%, 100%) */
     probability_t lower = 0;
     probability_t upper = ~0; /* all ones */
     probability_t underflowBits = 0;
-    size_t length;
+    uint16_t length;
     ulonglong2 element;
     ulonglong2 *elementPointer = (ulonglong2 *)fpIn;
-    size_t elementCount = ceil((float)size / (float)sizeof(ulonglong2));
-    size_t remaining = size;
-    uint32_t bytesOffset;
+    uint16_t elementCount = ceil((float)size / (float)sizeof(ulonglong2));
+    uint16_t remaining = size;
 
     /* initialize probability ranges asumming uniform distribution */
     /*
@@ -529,33 +507,14 @@ __host__ __device__ size_t arCompress(const uint8_t *fpIn, const size_t size, ui
 
 	#endif
 	*/
-    for (size_t i = 0; i < elementCount; ++i)
+    for (uint16_t i = 0; i < elementCount; ++i)
     {
         element = elementPointer[i];
-        bytesOffset = 0;
         //dataPointer = (uint8_t*)(&element);
         /* encode symbols one at a time */
 
-        while (bytesOffset < sizeof(unsigned long long) && remaining > 0)
-        {
-            c = (uint8_t)(element.x >> (bytesOffset * 8));
-            //c = fpIn[j];
-            applySymbolRange(c, r, lower, upper, cumulativeProb);
-            writeEncodedBits(&bfpOut, lower, upper, underflowBits);
-            ++bytesOffset;
-            --remaining;
-        }
-
-        bytesOffset = 0;
-        while (bytesOffset < sizeof(unsigned long long) && remaining > 0)
-        {
-            c = (uint8_t)(element.y >> (bytesOffset * 8));
-            //c = fpIn[j];
-            applySymbolRange(c, r, lower, upper, cumulativeProb);
-            writeEncodedBits(&bfpOut, lower, upper, underflowBits);
-            ++bytesOffset;
-            --remaining;
-        }
+        writeLongLong(element.x,remaining, r, lower, upper, underflowBits, cumulativeProb, bfpOut);
+        writeLongLong(element.y,remaining, r, lower, upper, underflowBits, cumulativeProb, bfpOut);
     }
 
     // applySymbolRange(EOF_CHAR, r,lower,upper);    /* encode an EOF */
@@ -886,7 +845,7 @@ __host__ __device__ void readEncodedBits(BitPointer *bfpIn, probability_t &lower
 *   Effects    : Encoded file is decoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ***************************************************************************/
-__host__ __device__ size_t arDecompress(const uint8_t *fpIn, const size_t inSize, uint8_t *fpOut, AdaptiveProbabilityRange &r, probability_t &cumulativeProb)
+__host__ __device__ uint16_t arDecompress(const uint8_t *fpIn, const uint16_t inSize, uint8_t *fpOut, AdaptiveProbabilityRange &r, probability_t &cumulativeProb)
 {
     int32_t c;
     probability_t unscaled;
@@ -897,7 +856,7 @@ __host__ __device__ size_t arDecompress(const uint8_t *fpIn, const size_t inSize
     probability_t upper; /* all ones */
     probability_t code;
     uint8_t *dstPointer = fpOut;
-    const size_t decompressedSize = getUncompressedSize(fpIn);
+    const uint16_t decompressedSize = getUncompressedSize(fpIn);
 
     //bfpIn->fp = ;
 

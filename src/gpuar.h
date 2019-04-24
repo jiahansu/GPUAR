@@ -50,10 +50,10 @@ struct __align__(4) AdaptiveProbabilityRange
 struct __align__(16) BitPointer
 {
     //public:
-    unsigned char *fp;      /* file pointer used by stdio functions */
+    uint8_t *fp;      /* file pointer used by stdio functions */
                             //unsigned char *fpEnd;
     bitbuffer bitBuffer;    /* bits waiting to be read/written */
-    unsigned char bitCount; /* number of bits in bitBuffer */
+    uint8_t bitCount; /* number of bits in bitBuffer */
 };
 
 #ifdef __cplusplus
@@ -69,13 +69,13 @@ extern "C"
     void writeEncodedBits(BitPointer *bfpOut, probability_t &lower, probability_t &upper, probability_t &underflowBits);
     unsigned short getUncompressedSize(const void *src);
     void write(unsigned int f, void *dst, size_t bytes);
-    unsigned int read(void const *src, unsigned int bytes);
+    uint32_t read(void const *src, uint32_t bytes);
     void initializeAdaptiveProbabilityRangeList(AdaptiveProbabilityRange *r, probability_t &cumProb);
     void initConstantRange();
-    size_t arCompress(const unsigned char *fpIn, const size_t inSize, unsigned char *outFile, AdaptiveProbabilityRange &r, probability_t &cumProb);
-    size_t arDecompress(const unsigned char *fpIn, const size_t inSize, unsigned char *fpOut, AdaptiveProbabilityRange &r, probability_t &cumProb);
-    void garCompressExecutor(const unsigned char *source, size_t size, unsigned char *destination, unsigned int numBlocks);
-    void garDecompressExecutor(const unsigned char *source, size_t size, unsigned char *destination, unsigned int numBlocks);
+    uint16_t arCompress(const uint8_t *fpIn, const uint16_t size, uint8_t *outFile, AdaptiveProbabilityRange &r, probability_t &cumulativeProb);
+    uint16_t arDecompress(const uint8_t *fpIn, const uint16_t inSize, uint8_t *fpOut, AdaptiveProbabilityRange &r, probability_t &cumProb);
+    void garCompressExecutor(const uint8_t *source, size_t size, uint8_t *destination, uint32_t numBlocks);
+    void garDecompressExecutor(const uint8_t *source, size_t size, uint8_t *destination, uint32_t numBlocks);
     void initializeDecoder(BitPointer *bfpIn, probability_t &lower, probability_t &upper, probability_t &code);
     probability_t getUnscaledCode(probability_t &lower, probability_t &upper, probability_t &code, probability_t &cumProb);
     void readEncodedBits(BitPointer *bfpIn, probability_t &lower, probability_t &upper, probability_t &code);
